@@ -173,10 +173,10 @@
   </header>
 
   <!-- 模式切换 -->
-  <section class="card">
+  <section class="card" id="queryPanel" role="tabpanel">
     <div class="tabs" role="tablist" aria-label="查询模式">
-      <button type="button" id="tabPos" class="tab active" role="tab">查第 N 位</button>
-      <button type="button" id="tabStr" class="tab" role="tab">查数字串位置</button>
+      <button type="button" id="tabPos" class="tab active" role="tab" aria-selected="true" aria-controls="queryPanel">查第 N 位</button>
+      <button type="button" id="tabStr" class="tab" role="tab" aria-selected="false" aria-controls="queryPanel">查数字串位置</button>
     </div>
 
     <!-- 常数选择 -->
@@ -237,6 +237,9 @@ const CONSTS = {
 const CHUNK  = 1000000;            // 每块位数
 const CHUNKS = 10;                 // 每常数块数
 const TOTAL  = CHUNK * CHUNKS;     // 10,000,000
+const TAPE_POS_RADIUS = 30;        // 模式 A：目标位上下文前后各 N 位
+const TAPE_STR_RADIUS = 20;        // 模式 B：匹配串上下文前后各 N 位
+const MAX_QUERY_LEN   = 10;        // 模式 B：输入串最大长度
 
 /* ---------- 分块加载器 ---------- */
 const store = {};                  // store[key] = { chunks:Map, inflight:Map }
@@ -265,8 +268,11 @@ function loadChunk(key, i){
 async function digitsOf(key, s0, e0){
   const c0 = Math.floor(s0 / CHUNK);
   const c1 = Math.floor((e0 - 1) / CHUNK);
-  let out = "";
-  for (let c = c0; c <= c1; c++) out += await loadChunk(key, c);
+  // 跨块时并行请求（最多 2 块），按序拼接
+  const parts = await Promise.all(
+    Array.from({ length: c1 - c0 + 1 }, (_, k) => loadChunk(key, c0 + k))
+  );
+  const out = parts.join("");
   const rel = s0 - c0 * CHUNK;
   return out.slice(rel, rel + (e0 - s0));
 }
@@ -275,7 +281,6 @@ async function digitsOf(key, s0, e0){
 const $ = id => document.getElementById(id);
 const state = { mode: "pos" };     // pos = 查第N位 | str = 查数字串位置
 const fmt = n => n.toLocaleString("en-US");
-const num0 = txt => txt.replace(/\D/g, "");
 
 function currentConst(){ return CONSTS[document.querySelector('input[name="cons"]:checked').value]; }
 
@@ -294,6 +299,7 @@ function showError(msg){
   $("ruler").textContent = "";
   $("tapeErr").textContent = msg;
 }
+// 注：以下 innerHTML 内容均为内部常量/固定标记拼接（用户输入只进 resLabel 的 textContent），无注入面
 function render(r){
   $("res").classList.add("show");
   $("tapeErr").textContent = "";
@@ -354,8 +360,8 @@ async function queryPos(constObj, raw){
   setStatus("正在加载数据块…");
   try {
     const idx = n - 1;
-    const s0 = Math.max(0, idx - 30);           // 目标位前后各 30 位
-    const e0 = Math.min(TOTAL, idx + 31);
+    const s0 = Math.max(0, idx - TAPE_POS_RADIUS);   // 目标位前后各 TAPE_POS_RADIUS 位
+    const e0 = Math.min(TOTAL, idx + TAPE_POS_RADIUS + 1);
     const win = await digitsOf(constObj.key, s0, e0);
     if (myJob !== job) return;                  // 已被新查询取代
     const digit = win[idx - s0];
@@ -376,7 +382,10 @@ async function queryPos(constObj, raw){
 
 /* ---------- 模式 B：数字串 → 位次（分块顺序扫描 + 跨块重叠） ---------- */
 async function queryStr(constObj, s){
-  if (!s.length) { showError("请输入 1 ~ 10 位数字串。"); return; }
+  if (!s.length || s.length > MAX_QUERY_LEN){
+    showError("请输入 1 ~ " + MAX_QUERY_LEN + " 位数字串。");
+    return;
+  }
   const myJob = job;
   const overlap = s.length - 1;                 // 跨块重叠位数
   let prevTail = "";
@@ -392,8 +401,8 @@ async function queryStr(constObj, s){
       if (f !== -1){
         const g0 = i * CHUNK + (f - (prevTail ? prevTail.length : 0));  // 起始 0-based（可能略早于块首，正确）
         const startPos = posOf(g0);
-        const ctx0 = Math.max(0, g0 - 20);      // 匹配串前后各 20 位
-        const ctx1 = Math.min(TOTAL, g0 + s.length + 20);
+        const ctx0 = Math.max(0, g0 - TAPE_STR_RADIUS);   // 匹配串前后各 TAPE_STR_RADIUS 位
+        const ctx1 = Math.min(TOTAL, g0 + s.length + TAPE_STR_RADIUS);
         setStatus("已定位，读取上下文…");
         const win = await digitsOf(constObj.key, ctx0, ctx1);
         if (myJob !== job) return;
@@ -409,7 +418,8 @@ async function queryStr(constObj, s){
         setStatus("");
         return;
       }
-      prevTail = chunk.slice(-overlap);
+      // 单字符（overlap=0）时保持空尾：slice(-0) 会被当作 slice(0) 误取整块
+      prevTail = overlap > 0 ? chunk.slice(-overlap) : "";
       setStatus("搜索中：已扫描 " + fmt((i + 1) * CHUNK) + " / " + fmt(TOTAL) + " 位…");
     }
     if (myJob !== job) return;
@@ -428,7 +438,7 @@ function updateHint(){
   if (state.mode === "pos"){
     $("hint").textContent = "输入第 1 ~ " + fmt(TOTAL) + " 位之间的正整数 N（第 1 位为整数部分，如 1000000）";
   } else {
-    $("hint").textContent = "输入 1 ~ 10 位纯数字串，允许前导 0（如 141592 或 0505）；跨块扫描，可随时发起新查询中止";
+    $("hint").textContent = "输入 1 ~ " + MAX_QUERY_LEN + " 位纯数字串，允许前导 0（如 141592 或 0505）；跨块扫描，可随时发起新查询中止";
   }
 }
 
@@ -440,14 +450,18 @@ function setMode(mode){
   setStatus("");
   $("tabPos").classList.toggle("active", mode === "pos");
   $("tabStr").classList.toggle("active", mode === "str");
+  $("tabPos").setAttribute("aria-selected", mode === "pos");
+  $("tabStr").setAttribute("aria-selected", mode === "str");
+  $("queryPanel").setAttribute("aria-labelledby", mode === "pos" ? "tabPos" : "tabStr");
   const q = $("q");
   if (mode === "pos"){
     q.type = "number"; q.inputMode = "numeric"; q.min = "1"; q.step = "1";
     q.removeAttribute("maxlength"); q.removeAttribute("pattern");
     q.placeholder = "输入正整数 N，例如 1000000";
   } else {
-    q.type = "text"; q.inputMode = "numeric"; q.pattern = "[0-9]*"; q.setAttribute("maxlength", "10");
-    q.placeholder = "输入 1 ~ 10 位数字串，例如 141592";
+    q.type = "text"; q.inputMode = "numeric"; q.pattern = "[0-9]*";
+    q.setAttribute("maxlength", String(MAX_QUERY_LEN));
+    q.placeholder = "输入 1 ~ " + MAX_QUERY_LEN + " 位数字串，例如 141592";
   }
   q.value = "";
   hideRes();
@@ -477,26 +491,37 @@ function submit(){
 $("form").addEventListener("submit", function(ev){ ev.preventDefault(); submit(); });
 $("tabPos").addEventListener("click", function(){ setMode("pos"); });
 $("tabStr").addEventListener("click", function(){ setMode("str"); });
-// 回车即查询：先于浏览器隐式提交拦截，避免双重触发
-$("q").addEventListener("keydown", function(ev){
-  if (ev.key === "Enter"){ ev.preventDefault(); submit(); }
+// 回车提交：由浏览器表单隐式提交触发 submit 事件（无需额外 keydown 监听，避免双路径）
+document.querySelector(".tabs").addEventListener("keydown", function(ev){
+  if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+  ev.preventDefault();
+  const next = state.mode === "pos" ? "str" : "pos";
+  setMode(next);
+  (next === "pos" ? $("tabPos") : $("tabStr")).focus();
 });
 
-$("consts").addEventListener("click", function(ev){
-  const radio = ev.target.closest("input[type=radio]");
-  if (!radio) return;
+// 常数芯片：change（radio 值变化）+ click 兜底，均以 :checked 为准，不依赖浏览器合成事件顺序
+let lastConst = "pi";
+function applyConstSelection(){
+  const v = document.querySelector('input[name="cons"]:checked').value;
+  if (v === lastConst) return;
+  lastConst = v;
   clearConstChips();
-  (radio.value === "pi" ? $("chipPi") : $("chipE")).classList.add("on");
+  (v === "pi" ? $("chipPi") : $("chipE")).classList.add("on");
   invalidate();
   setStatus("");
   hideRes();
   updateHint();
+}
+$("consts").addEventListener("change", function(ev){
+  if (ev.target && ev.target.name === "cons") applyConstSelection();
 });
+$("consts").addEventListener("click", applyConstSelection);   // 幂等兜底，无变化时自动忽略
 
 // 模式 B：输入过程实时过滤非数字，限制长度（保留前导 0）
 $("q").addEventListener("input", function(){
   if (state.mode === "str"){
-    const clean = this.value.replace(/\D/g, "").slice(0, 10);
+    const clean = this.value.replace(/\D/g, "").slice(0, MAX_QUERY_LEN);
     if (clean !== this.value) this.value = clean;
   }
 });
