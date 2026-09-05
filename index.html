@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>π &amp; e Explorer</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --border:#30363d;
+    --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff; --hot:#f78166; --err:#f85149;
+    /* 界面文字：无衬线；数字内容：等宽（保证磁带分组对齐） */
+    --sans:-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei",
+           "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+    --mono:"Cascadia Mono", "JetBrains Mono", ui-monospace, SFMono-Regular,
+           Menlo, Monaco, Consolas, "Microsoft YaHei", monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:var(--bg); color:var(--text);}
+  body{
+    font-family:var(--sans);
+    min-height:100vh; padding:32px 16px 24px;
+  }
+  .wrap{max-width:900px; margin:0 auto;}
+
+  /* 标题艺术字体：EB Garamond Italic 子集（仅 π & e 所需字形），base64 内嵌，离线可用 */
+  @font-face{
+    font-family:"PiArt";
+    src:url(data:font/woff2;base64,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) format("woff2");
+    font-style:italic; font-weight:400;
+    font-display:swap;
+  }
+
+  /* ---------- header ---------- */
+  header{text-align:center; margin-bottom:26px;}
+  h1{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    font-size:clamp(30px, 7vw, 58px); line-height:1.04;
+    letter-spacing:.02em;
+  }
+  .art{
+    font-family:"PiArt", Georgia, "Times New Roman", "Songti SC", serif;
+    font-style:italic; font-weight:400;
+    background:linear-gradient(92deg, #f78166 6%, #ffd166 46%, #58a6ff 96%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    padding:2px 4px 4px;
+  }
+  .word{
+    font-size:.27em; letter-spacing:.5em; font-weight:700;
+    text-transform:uppercase; color:var(--muted);
+    padding-left:.5em;               /* 抵消末字符间距，保证视觉居中 */
+  }
+  .sub{margin-top:8px; color:var(--muted); font-size:clamp(11px,2.4vw,13.5px);}
+
+  /* ---------- card ---------- */
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:20px; margin-bottom:18px;
+  }
+
+  /* tabs */
+  .tabs{display:flex; gap:10px; margin-bottom:18px;}
+  .tab{
+    flex:1; padding:11px 8px; cursor:pointer; font:inherit; font-size:15px;
+    color:var(--muted); background:#0d1117; border:1px solid var(--border);
+    border-radius:9px; transition:all .15s ease; user-select:none;
+  }
+  .tab:hover{color:var(--text); border-color:#58a6ff88;}
+  .tab.active{
+    color:var(--accent); border-color:var(--accent);
+    background:rgba(88,166,255,.10); box-shadow:0 0 0 1px rgba(88,166,255,.25) inset;
+  }
+
+  /* constant chips */
+  .consts{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .chip{
+    flex:1; min-width:150px; display:flex; align-items:center; gap:10px;
+    border:1px solid var(--border); border-radius:9px; padding:10px 14px;
+    cursor:pointer; background:#0d1117; transition:border-color .15s ease;
+    font-size:14px;
+  }
+  .chip:hover{border-color:#58a6ff88;}
+  .chip.on{border-color:var(--accent); background:rgba(88,166,255,.07);}
+  .chip input{display:none;}
+  .dot{
+    width:14px; height:14px; flex:0 0 14px; border-radius:50%;
+    border:2px solid var(--muted);
+  }
+  .chip.on .dot{border-color:var(--accent); background:radial-gradient(circle, var(--accent) 55%, transparent 58%);}
+  .chip .sym{font-size:19px; color:var(--accent);}
+  .chip small{display:block; color:var(--muted); font-size:11px; margin-top:2px;}
+
+  /* input row */
+  .qrow{display:flex; gap:10px;}
+  #q{
+    flex:1; min-width:0; padding:12px 14px; font:inherit; font-size:16px;
+    font-family:var(--mono);
+    background:#0d1117; color:var(--text); border:1px solid var(--border);
+    border-radius:9px; outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  #q::placeholder{color:#6e7681;}
+  #q:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(88,166,255,.18);}
+  #go{
+    padding:0 22px; font:inherit; font-size:15px; cursor:pointer;
+    background:var(--accent); color:#0d1117; font-weight:700;
+    border:none; border-radius:9px; transition:filter .15s ease;
+  }
+  #go:hover{filter:brightness(1.12);}
+  .hint{margin-top:9px; font-size:12px; color:var(--muted); min-height:16px; word-break:break-all;}
+  #status{margin-top:4px; font-size:12px; color:var(--accent); min-height:16px; word-break:break-all;}
+
+  /* ---------- result ---------- */
+  .result{display:none; text-align:center;}
+  .result.show{display:block;}
+  #resLabel{font-size:13px; color:var(--muted); margin-bottom:6px; letter-spacing:.08em;}
+  #resBig{
+    font-family:var(--mono);
+    font-size:clamp(88px, 20vw, 178px); line-height:1.12; font-weight:700;
+    overflow-x:auto; white-space:nowrap;
+  }
+  #resBig .unit{margin-left:.14em; font-size:.16em; color:var(--muted); font-weight:400;}
+  #resNote{
+    margin:2px auto 18px; padding:6px 14px; display:inline-block;
+    background:#0d1117; border:1px solid var(--border); border-radius:999px;
+    font-size:13px; color:var(--accent);
+  }
+  #resNote .pos{color:var(--hot); font-weight:700;}
+
+  /* context tape */
+  .tapeBox{
+    background:#0d1117; border:1px solid var(--border); border-radius:10px;
+    padding:14px 12px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    text-align:left;
+  }
+  .tape{
+    display:inline-block; font-family:var(--mono);
+    font-size:clamp(13px, 2.9vw, 19px);
+    white-space:nowrap; letter-spacing:.02em; min-width:100%;
+  }
+  .tape .grp{display:inline-block;}
+  .tape .sp{display:inline-block; width:1.1ch;}
+  .tape .sp2{display:inline-block; width:.6ch;}
+  .tape .hl{background:var(--hot); color:#0d1117; border-radius:3px; padding:1px 0; font-weight:700;}
+  .tape .hm{background:var(--accent); color:#0d1117; border-radius:3px; padding:1px 0; font-weight:700;}
+  #tapeErr{
+    margin-top:14px; font-size:14px; line-height:1.7; color:var(--err);
+    word-break:break-all;
+  }
+  .ruler{margin-top:8px; text-align:left; color:var(--muted); font-size:11.5px; line-height:1.6; word-break:break-all;}
+  .ruler b{color:var(--accent); font-weight:600;}
+
+  footer{margin-top:26px; text-align:center; font-size:11.5px; color:var(--muted); line-height:1.8;}
+  footer .copy{margin-top:6px; font-size:12px;}
+  footer a{color:var(--accent); text-decoration:none; font-weight:600;}
+  footer a:hover{text-decoration:underline;}
+
+  @media (max-width:560px){
+    .chip{min-width:100%;}
+    .qrow{flex-direction:column;}
+    #go{padding:12px;}
+    .card{padding:16px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>
+      <span class="art">π &amp; e</span>
+      <span class="word">Explorer</span>
+    </h1>
+    <div class="sub">圆周率 / 自然对数的双向数字查询 · 位次规则：整数部分为第 1 位，小数点不占位 · 数据按需加载</div>
+  </header>
+
+  <!-- 模式切换 -->
+  <section class="card">
+    <div class="tabs" role="tablist" aria-label="查询模式">
+      <button type="button" id="tabPos" class="tab active" role="tab">查第 N 位</button>
+      <button type="button" id="tabStr" class="tab" role="tab">查数字串位置</button>
+    </div>
+
+    <!-- 常数选择 -->
+    <div class="consts" id="consts">
+      <label class="chip on" id="chipPi">
+        <input type="radio" name="cons" value="pi" checked>
+        <span class="dot"></span>
+        <span><span class="sym">π</span><small>圆周率 · 整数位 3 · 10M 位</small></span>
+      </label>
+      <label class="chip" id="chipE">
+        <input type="radio" name="cons" value="e">
+        <span class="dot"></span>
+        <span><span class="sym">e</span><small>自然对数底 · 整数位 2 · 10M 位</small></span>
+      </label>
+    </div>
+
+    <!-- 查询表单 -->
+    <form id="form" autocomplete="off" novalidate>
+      <div class="qrow">
+        <input id="q" type="number" inputmode="numeric" min="1" step="1"
+               placeholder="输入正整数 N，例如 1000000" autofocus>
+        <button id="go" type="submit">查 询</button>
+      </div>
+      <div class="hint" id="hint"></div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <!-- 结果 -->
+  <section class="card result" id="res">
+    <div id="resLabel"></div>
+    <div id="resBig"></div>
+    <div id="resNote"></div>
+    <div class="tapeBox" id="tapeBox" aria-label="上下文数字带"></div>
+    <div id="tapeErr"></div>
+    <div class="ruler" id="ruler"></div>
+  </section>
+
+  <footer>
+    数据：π 与 e 各内置 10,000,000 位（10M）纯数字，按 1,000,000 位/块 分块按需加载，已加载块驻留内存缓存<br>
+    生成算法：Chudnovsky（π）/ 泰勒级数（e），经 gmpy2 + mpmath 高精度验算
+    <div class="copy">© <span id="copyYear">2026</span> <a href="https://github.com/baofengqwq" target="_blank" rel="noopener noreferrer">baofeng</a></div>
+  </footer>
+
+</div>
+
+<script>
+/* =========================================================
+ * π / e Explorer —— 数据按需加载版
+ * 数据布局：digits/<key>_<块号>.txt，每块 1,000,000 位纯数字（无小数点）
+ * 位次定义（1-based）：整数部分 = 第 1 位，小数点不占位。
+ *   例：π 第 1 位 = 3，第 2 位 = 1，第 3 位 = 4，……
+ * ========================================================= */
+const CONSTS = {
+  pi: { key: "pi", sym: "π", label: "圆周率" },
+  e : { key: "e",  sym: "e", label: "自然对数底" }
+};
+const CHUNK  = 1000000;            // 每块位数
+const CHUNKS = 10;                 // 每常数块数
+const TOTAL  = CHUNK * CHUNKS;     // 10,000,000
+
+/* ---------- 分块加载器 ---------- */
+const store = {};                  // store[key] = { chunks:Map, inflight:Map }
+Object.keys(CONSTS).forEach(k => store[k] = { chunks: new Map(), inflight: new Map() });
+
+let job = 0;                       // 查询令牌：每次新查询/切页自增，旧异步结果作废
+
+function chunkURL(key, i){ return "digits/" + key + "_" + i + ".txt"; }
+
+function loadChunk(key, i){
+  const st = store[key];
+  if (st.chunks.has(i))   return Promise.resolve(st.chunks.get(i));
+  if (st.inflight.has(i)) return st.inflight.get(i);   // 复用进行中的同一请求
+  const p = fetch(chunkURL(key, i), { cache: "default" })
+    .then(r => {
+      if (!r.ok) throw new Error("HTTP " + r.status + "（" + chunkURL(key, i) + "）");
+      return r.text();
+    })
+    .then(t => { st.chunks.set(i, t); return t; })
+    .finally(() => st.inflight.delete(i));
+  st.inflight.set(i, p);
+  return p;
+}
+
+/** 取 [s0,e0)（0-based，全局纯数字串坐标）区间的数字，自动跨块加载 */
+async function digitsOf(key, s0, e0){
+  const c0 = Math.floor(s0 / CHUNK);
+  const c1 = Math.floor((e0 - 1) / CHUNK);
+  let out = "";
+  for (let c = c0; c <= c1; c++) out += await loadChunk(key, c);
+  const rel = s0 - c0 * CHUNK;
+  return out.slice(rel, rel + (e0 - s0));
+}
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const state = { mode: "pos" };     // pos = 查第N位 | str = 查数字串位置
+const fmt = n => n.toLocaleString("en-US");
+const num0 = txt => txt.replace(/\D/g, "");
+
+function currentConst(){ return CONSTS[document.querySelector('input[name="cons"]:checked').value]; }
+
+function posOf(idx){ return idx + 1; }                       // 0-based → 全局位次
+function fracDesc(pos){                                      // 位次 → 描述
+  return pos === 1 ? "整数部分" : "小数点后第 " + fmt(pos - 1) + " 位";
+}
+
+function setStatus(t){ $("status").textContent = t || ""; }
+function showError(msg){
+  $("res").classList.add("show");
+  $("resLabel").textContent = "";
+  $("resBig").textContent = "";
+  $("resNote").textContent = "";
+  $("tapeBox").innerHTML = "";
+  $("ruler").textContent = "";
+  $("tapeErr").textContent = msg;
+}
+function render(r){
+  $("res").classList.add("show");
+  $("tapeErr").textContent = "";
+  $("resLabel").textContent = r.label;
+  $("resBig").innerHTML = r.big + (r.bigUnit ? '<span class="unit">' + r.bigUnit + '</span>' : "");
+  $("resNote").innerHTML = r.note;
+  $("tapeBox").innerHTML = '<span class="tape">' + r.tape + '</span>';
+  $("ruler").innerHTML = r.ruler || "";
+}
+
+/**
+ * 上下文磁带：win 为截取子串（局部坐标），s0 为其全局 0-based 起点；
+ * 每 5 位一组且组边界锚定全局第 1 位；ranges=[{a,b,cls}] 高亮区间（局部，[a,b)）。
+ */
+function buildTape(win, s0, ranges){
+  let html = "", i = 0;
+  while (i < win.length){
+    const gpos = s0 + i;                        // 当前字符的全局 0-based 下标
+    const remain = 5 - (gpos % 5);              // 距下一组边界还有几位
+    const n = Math.min(remain, win.length - i);
+    const runs = [];
+    let cur = { cls: null, s: "" };
+    for (let k = 0; k < n; k++){
+      const ch = win[i + k];
+      const r = ranges.find(r => i + k >= r.a && i + k < r.b);
+      const cls = r ? r.cls : null;
+      if (cls !== cur.cls){
+        if (cur.s !== "") runs.push(cur);       // 关闭上一个 run
+        cur = { cls: cls, s: "" };
+      }
+      cur.s += ch;
+    }
+    if (cur.s !== "") runs.push(cur);           // 组末收尾
+    let seg = "";
+    for (let j = 0; j < runs.length; j++){
+      const run = runs[j];
+      seg += run.cls ? '<span class="' + run.cls + '">' + run.s + '</span>' : run.s;
+    }
+    html += '<span class="grp">' + seg + '</span>';
+    i += n;
+    if (i < win.length) html += '<span class="sp"></span>';
+  }
+  return html;
+}
+
+/* ---------- 模式 A：位次 → 数字 ---------- */
+async function queryPos(constObj, raw){
+  const n = Number(raw);
+  if (!raw || !Number.isFinite(n) || !Number.isInteger(n) || n < 1){
+    showError("请输入正整数 N（第 1 位为整数部分，N ≥ 1）。");
+    return;
+  }
+  if (n > TOTAL){
+    showError("当前仅支持查询前 " + fmt(TOTAL) + " 位。");
+    return;
+  }
+  const myJob = job;
+  setStatus("正在加载数据块…");
+  try {
+    const idx = n - 1;
+    const s0 = Math.max(0, idx - 30);           // 目标位前后各 30 位
+    const e0 = Math.min(TOTAL, idx + 31);
+    const win = await digitsOf(constObj.key, s0, e0);
+    if (myJob !== job) return;                  // 已被新查询取代
+    const digit = win[idx - s0];
+    render({
+      label: constObj.sym + "（" + constObj.label + "）第 " + fmt(n) + " 位的数字",
+      big: digit,
+      note: '全局第 <span class="pos">' + fmt(n) + '</span> 位（' + fracDesc(n) + '）',
+      tape: buildTape(win, s0, [{ a: idx - s0, b: idx - s0 + 1, cls: "hl" }]),
+      ruler: "行首即全局第 " + fmt(posOf(s0)) + " 位开始 · 每组 5 位，<b>" + fmt(n) + "</b> 为目标位"
+    });
+    setStatus("");
+  } catch (err){
+    if (myJob !== job) return;
+    showError("数据加载失败：" + err.message + "。请确认 digits/ 目录已随 index.html 一起部署。");
+    setStatus("");
+  }
+}
+
+/* ---------- 模式 B：数字串 → 位次（分块顺序扫描 + 跨块重叠） ---------- */
+async function queryStr(constObj, s){
+  if (!s.length) { showError("请输入 1 ~ 10 位数字串。"); return; }
+  const myJob = job;
+  const overlap = s.length - 1;                 // 跨块重叠位数
+  let prevTail = "";
+  try {
+    for (let i = 0; i < CHUNKS; i++){
+      if (myJob !== job) return;                // 被新查询/切换作废
+      const chunk = await loadChunk(constObj.key, i);
+      if (myJob !== job) return;
+      const text = prevTail ? prevTail + chunk : chunk;
+      // 重叠尾比目标串短 1 位：落在尾内的匹配必然跨块（上块搜不到、必须在此块内识别），
+      // 而上块已覆盖所有更早的起点，因此从 0 起搜既无遗漏也不会重复。
+      const f = text.indexOf(s);
+      if (f !== -1){
+        const g0 = i * CHUNK + (f - (prevTail ? prevTail.length : 0));  // 起始 0-based（可能略早于块首，正确）
+        const startPos = posOf(g0);
+        const ctx0 = Math.max(0, g0 - 20);      // 匹配串前后各 20 位
+        const ctx1 = Math.min(TOTAL, g0 + s.length + 20);
+        setStatus("已定位，读取上下文…");
+        const win = await digitsOf(constObj.key, ctx0, ctx1);
+        if (myJob !== job) return;
+        render({
+          label: constObj.sym + "（" + constObj.label + "）中“" + s + "”首次出现的位置",
+          big: String(startPos),
+          bigUnit: "位",
+          note: '首次出现：全局第 <span class="pos">' + fmt(startPos) + '</span> 位（' +
+                fracDesc(startPos) + '）起，连续 ' + s.length + ' 位，至第 ' + fmt(startPos + s.length - 1) + ' 位',
+          tape: buildTape(win, ctx0, [{ a: g0 - ctx0, b: g0 - ctx0 + s.length, cls: "hm" }]),
+          ruler: "行首即全局第 " + fmt(posOf(ctx0)) + " 位开始 · 高亮处为整段匹配 · 每组 5 位"
+        });
+        setStatus("");
+        return;
+      }
+      prevTail = chunk.slice(-overlap);
+      setStatus("搜索中：已扫描 " + fmt((i + 1) * CHUNK) + " / " + fmt(TOTAL) + " 位…");
+    }
+    if (myJob !== job) return;
+    showError("该数字串在前 " + fmt(TOTAL) + " 位中未出现。");
+    setStatus("");
+  } catch (err){
+    if (myJob !== job) return;
+    showError("数据加载失败：" + err.message + "。请确认 digits/ 目录已随 index.html 一起部署。");
+    setStatus("");
+  }
+}
+
+/* ---------- 交互 ---------- */
+function updateHint(){
+  const c = currentConst();
+  if (state.mode === "pos"){
+    $("hint").textContent = "输入第 1 ~ " + fmt(TOTAL) + " 位之间的正整数 N（第 1 位为整数部分，如 1000000）";
+  } else {
+    $("hint").textContent = "输入 1 ~ 10 位纯数字串，允许前导 0（如 141592 或 0505）；跨块扫描，可随时发起新查询中止";
+  }
+}
+
+function invalidate(){ job++; }                 // 作废进行中的异步查询
+
+function setMode(mode){
+  state.mode = mode;
+  invalidate();
+  setStatus("");
+  $("tabPos").classList.toggle("active", mode === "pos");
+  $("tabStr").classList.toggle("active", mode === "str");
+  const q = $("q");
+  if (mode === "pos"){
+    q.type = "number"; q.inputMode = "numeric"; q.min = "1"; q.step = "1";
+    q.removeAttribute("maxlength"); q.removeAttribute("pattern");
+    q.placeholder = "输入正整数 N，例如 1000000";
+  } else {
+    q.type = "text"; q.inputMode = "numeric"; q.pattern = "[0-9]*"; q.setAttribute("maxlength", "10");
+    q.placeholder = "输入 1 ~ 10 位数字串，例如 141592";
+  }
+  q.value = "";
+  hideRes();
+  updateHint();
+  q.focus();
+}
+
+function hideRes(){ $("res").classList.remove("show"); }
+function clearConstChips(){
+  $("chipPi").classList.remove("on");
+  $("chipE").classList.remove("on");
+}
+
+function submit(){
+  invalidate();
+  const c = currentConst();
+  const q = $("q");
+  let val = q.value.trim();
+  if (state.mode === "pos"){
+    queryPos(c, val);
+  } else {
+    val = val.replace(/\D/g, "");
+    queryStr(c, val);
+  }
+}
+
+$("form").addEventListener("submit", function(ev){ ev.preventDefault(); submit(); });
+$("tabPos").addEventListener("click", function(){ setMode("pos"); });
+$("tabStr").addEventListener("click", function(){ setMode("str"); });
+// 回车即查询：先于浏览器隐式提交拦截，避免双重触发
+$("q").addEventListener("keydown", function(ev){
+  if (ev.key === "Enter"){ ev.preventDefault(); submit(); }
+});
+
+$("consts").addEventListener("click", function(ev){
+  const radio = ev.target.closest("input[type=radio]");
+  if (!radio) return;
+  clearConstChips();
+  (radio.value === "pi" ? $("chipPi") : $("chipE")).classList.add("on");
+  invalidate();
+  setStatus("");
+  hideRes();
+  updateHint();
+});
+
+// 模式 B：输入过程实时过滤非数字，限制长度（保留前导 0）
+$("q").addEventListener("input", function(){
+  if (state.mode === "str"){
+    const clean = this.value.replace(/\D/g, "").slice(0, 10);
+    if (clean !== this.value) this.value = clean;
+  }
+});
+
+updateHint();
+
+// 页脚版权年份：静态兜底为 2026，运行年份变化时自动跟进
+const yearEl = document.getElementById("copyYear");
+if (yearEl) yearEl.textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
